@@ -57,7 +57,7 @@ export function ruleMatchesItem(item, rule) {
  */
 export function calculateDiscountAmount(price, rule) {
   if (rule.type === 'percentage') {
-    return Math.round(price * rule.value / 100)
+    return Math.round((price * rule.value) / 100)
   }
   if (rule.type === 'flat') {
     return Math.min(price, rule.value)
@@ -119,7 +119,7 @@ export function applyDiscounts(item, rules) {
     const sorted = [...nonStackable].sort(
       (a, b) =>
         calculateDiscountAmount(item.basePrice, b) -
-        calculateDiscountAmount(item.basePrice, a)
+        calculateDiscountAmount(item.basePrice, a),
     )
     winner = sorted[0]
     skipped = sorted.slice(1)
@@ -133,7 +133,9 @@ export function applyDiscounts(item, rules) {
   if (winner) {
     price -= calculateDiscountAmount(price, winner)
     appliedRules.push(winner.ruleId)
-    reasoningParts.push(ruleToReasoning(winner) + (skipped.length ? " (best saving)" : ""))
+    reasoningParts.push(
+      ruleToReasoning(winner) + (skipped.length ? ' (best saving)' : ''),
+    )
   }
 
   for (const rule of stackable) {
@@ -177,14 +179,25 @@ export function cartTotal(results) {
 export function quoteCart(items, rules) {
   const results = processCart(items, rules)
   const subtotal = cartTotal(results)
-  const eligible = rules.filter(r => r.scope === 'cart' && subtotal >= r.minCartValue && subtotal > 0)
-  const winner = eligible.filter(r => !r.stackable).sort((a,b) => calculateDiscountAmount(subtotal,b) - calculateDiscountAmount(subtotal,a))[0]
-  const applied = [...(winner ? [winner] : []), ...eligible.filter(r => r.stackable)]
+  const eligible = rules.filter(
+    (r) => r.scope === 'cart' && subtotal >= r.minCartValue && subtotal > 0,
+  )
+  const winner = eligible
+    .filter((r) => !r.stackable)
+    .sort(
+      (a, b) =>
+        calculateDiscountAmount(subtotal, b) -
+        calculateDiscountAmount(subtotal, a),
+    )[0]
+  const applied = [
+    ...(winner ? [winner] : []),
+    ...eligible.filter((r) => r.stackable),
+  ]
   let total = subtotal
-  const offers = applied.map(rule => {
-    const saving = calculateDiscountAmount(total,rule)
+  const offers = applied.map((rule) => {
+    const saving = calculateDiscountAmount(total, rule)
     total -= saving
-    return {rule, saving}
+    return { rule, saving }
   })
-  return {results, subtotal, offers, total}
+  return { results, subtotal, offers, total }
 }
