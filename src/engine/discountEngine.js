@@ -60,7 +60,7 @@ export function calculateDiscountAmount(price, rule) {
     return Math.round(price * rule.value / 100)
   }
   if (rule.type === 'flat') {
-    return rule.value
+    return Math.min(price, rule.value)
   }
   return 0
 }
@@ -133,7 +133,7 @@ export function applyDiscounts(item, rules) {
   if (winner) {
     price -= calculateDiscountAmount(price, winner)
     appliedRules.push(winner.ruleId)
-    reasoningParts.push(ruleToReasoning(winner))
+    reasoningParts.push(ruleToReasoning(winner) + (skipped.length ? " (best saving)" : ""))
   }
 
   for (const rule of stackable) {
@@ -171,4 +171,20 @@ export function processCart(cartItems, rules) {
  */
 export function cartTotal(results) {
   return results.reduce((sum, r) => sum + r.finalPrice, 0)
+}
+
+// Thresholds share the same post-item subtotal, even when cart offers stack.
+export function quoteCart(items, rules) {
+  const results = processCart(items, rules)
+  const subtotal = cartTotal(results)
+  const eligible = rules.filter(r => r.scope === 'cart' && subtotal >= r.minCartValue && subtotal > 0)
+  const winner = eligible.filter(r => !r.stackable).sort((a,b) => calculateDiscountAmount(subtotal,b) - calculateDiscountAmount(subtotal,a))[0]
+  const applied = [...(winner ? [winner] : []), ...eligible.filter(r => r.stackable)]
+  let total = subtotal
+  const offers = applied.map(rule => {
+    const saving = calculateDiscountAmount(total,rule)
+    total -= saving
+    return {rule, saving}
+  })
+  return {results, subtotal, offers, total}
 }

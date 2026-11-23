@@ -1,87 +1,30 @@
-# Opptra Discount Engine — Base Implementation
+# Opptra Discount Engine
 
-This is the base implementation for the Opptra FDE Intern assignment.
-Fork this repo, complete the tasks in the assignment brief, and submit your GitHub link + Loom.
+[Live checkout](https://prashantmoryani.github.io/discount-engine-assignment/) · [Submission fork](https://github.com/prashantmoryani/discount-engine-assignment)
 
-## Running locally
+## Run locally
 
-```bash
-npm install
-npm run dev
-```
+1. With Node.js 22 or 24 and Git installed, run `git clone https://github.com/prashantmoryani/discount-engine-assignment.git`, then `cd discount-engine-assignment`.
+2. Run `npm ci`, then `npm run dev`. Open the local address printed by Vite.
 
-Open http://localhost:5173
+Run `npm test` for regression tests. To test the production bundle, run `npm run build` followed by `npm run preview`. GitHub Actions runs the tests and build before deploying the main branch to GitHub Pages.
 
-## Deploying
+## Try the live checkout
 
-```bash
-npm run build
-```
+1. Click **Load sample cart & rules**. Six final item prices should read ₹1,104, ₹629, ₹509, ₹2,499, ₹382 and ₹809. The subtotal is ₹5,932. The separate 10% cart offer saves ₹593, giving a final total of **₹5,339**. The ceramic vase has no offer.
+2. Enter **20% off for Natura Casa brand, stackable with other offers** and select **Parse rule**. First use downloads a 491 MB quantized Qwen2.5 model from Hugging Face. Use a recent desktop browser, a stable connection, and keep the tab open. The language model runs on the CPU through WebAssembly. No API key is required. Review the target, type, value, stacking and threshold. Discard leaves the total at ₹5,339. Confirming that rule once changes it to **₹5,026**.
+3. Load the sample again. Download the sample PDF. Upload a smaller CSV containing the header and first item from `sample-data/cart.csv`. The subtotal is ₹1,104 and the cart offer disappears. Now upload `sample-data/cart.pdf` into the same input. All six items replace the smaller cart, the four active rules remain, and ₹5,339 returns automatically. The two original CSV input paths are also available independently.
+4. Try **Give a discount for big orders**. The form asks for a specific amount. Try a malformed PDF or CSV; the previous checkout remains available while the error identifies what needs attention.
 
-Deploy the `dist/` folder to Vercel, Netlify, or any static host.
-The live deployment URL must be in your README before submission.
+## How the implementation works
 
-## How to use
+- **Pricing.** The starter's pure item engine matches brand/platform case-insensitively, takes the greatest whole-rupee non-stackable saving (first rule wins a tie), then applies stackables in input order to the remaining price. Flat savings are capped at the remaining price. The checkout wrapper computes the subtotal, evaluates every cart threshold against that same subtotal, then applies the best eligible non-stackable cart offer followed by eligible stackables. A cart offer is displayed on a separate line.
+- **Rounding and thresholds.** The engine retains the starter’s whole-rupee convention, rounding each percentage saving before subtracting it. Thresholds are inclusive. In particular, the brief's “more than Rs.5,000” example maps to “₹5,000 or more”; the confirmation explicitly displays this interpretation. Rules with smaller discounts can win on lower-price items.
+- **Rule input.** A few-shot prompt includes the known brand and platform names. The model proposes JSON. The validator checks field types, ranges, scope, target and threshold; the proposed target and amounts must occur in the input. Errors and ambiguous requests never change the active rules. Human confirmation is the final semantic check. Prices are calculated exclusively by the engine. Cart and rule state lasts for the current page session.
+- **PDF input.** PDF.js extracts text positions on each page. The four header positions define the column boundaries. Tokens on the same baseline form a row, preserving multiword names. A valid file replaces the entire cart. A malformed row rejects the entire import to prevent silent undercharging. Supported input is a selectable-text table with one product per line and consistent columns. Scans, wrapped rows and arbitrary invoice layouts require OCR or a different adapter.
+- **Code map.** `src/engine/discountEngine.js` prices items and carts. `src/engine/csvParser.js` handles CSV. `src/inputs/` holds PDF extraction, LLM inference and shared validation. `src/components/RuleForm.jsx` controls preview/confirm/discard. `src/App.jsx` owns the current cart and rules. A new input adapter only needs to produce the same objects.
+- **Tradeoff.** Local inference avoids a server, shared credentials and per-request charges. The first download and CPU inference can be slow, especially on phones. A production service could replace the inference adapter with a hosted model while retaining the validator, review step and calculator.
 
-1. Upload `sample-data/rules.csv` as the discount rules input
-2. Upload `sample-data/cart.csv` as the cart input
-3. Click **Calculate Discounts**
+## Walkthrough recording
 
-## Project structure
-
-```
-src/
-  engine/
-    discountEngine.js   ← pure discount logic (no UI)
-    csvParser.js        ← CSV → typed objects
-  components/
-    CsvUploader.jsx     ← file upload area
-    DataTable.jsx       ← reusable table
-    ErrorBanner.jsx     ← parse error display
-  App.jsx               ← main UI + state
-  main.jsx              ← entry point
-
-sample-data/
-  rules.csv             ← sample discount rules
-  cart.csv              ← sample cart items
-```
-
-## CSV formats
-
-**rules.csv**
-
-| Column     | Type              | Example          |
-|------------|-------------------|------------------|
-| rule_id    | string            | RULE-01          |
-| scope      | brand \| platform | platform         |
-| applies_to | string            | Amazon India     |
-| type       | percentage \| flat| percentage       |
-| value      | number            | 15               |
-| stackable  | true \| false     | false            |
-
-**cart.csv**
-
-| Column     | Type   | Example      |
-|------------|--------|--------------|
-| item_id    | string | ITEM-01      |
-| product    | string | Cushion Cover|
-| brand      | string | Natura Casa  |
-| platform   | string | Amazon India |
-| base_price | number | 1299         |
-
-## Discount logic
-
-- When multiple non-stackable rules match an item, the one giving the **largest saving in rupees** is applied.
-- Rules marked `stackable: true` apply **on top of** the winning non-stackable rule.
-- If no rules match, the base price is returned with a "No offers available" note.
-
-## Expected results for the sample data
-
-| Item    | Base Price | Final Price | Reasoning                              |
-|---------|-----------|-------------|----------------------------------------|
-| ITEM-01 | Rs.1,299  | Rs.1,104    | Platform offer: 15% off (beats Rs.150) |
-| ITEM-02 | Rs.849    | Rs.629      | Brand offer: Rs.150 off + Platform 10% |
-| ITEM-03 | Rs.599    | Rs.509      | Platform offer: 15% off                |
-| ITEM-04 | Rs.2,499  | Rs.2,499    | No offers available                    |
-| ITEM-05 | Rs.449    | Rs.382      | Platform offer: 15% off                |
-| ITEM-06 | Rs.899    | Rs.809      | Platform offer: 10% off                |
+Open the live checkout and follow the first three steps above. Show the stacked Bed Sheet Set, the full-price Ceramic Vase, the separate cart saving, the parsed rule before and after confirming, then the PDF replacing a different cart. The recording should capture the deployed URL.
