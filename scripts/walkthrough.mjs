@@ -8,7 +8,7 @@ import { chromium } from 'playwright'
 const url = 'https://prashantmoryani.github.io/discount-engine-assignment/'
 const directory = 'walkthrough-output'
 await mkdir(directory, { recursive: true })
-const browser = await chromium.launch()
+const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL || undefined })
 const context = await browser.newContext({
   viewport: { width: 1280, height: 900 },
   recordVideo: { dir: directory, size: { width: 1280, height: 900 } },
