@@ -27,4 +27,6 @@ Run `npm test` for regression tests. To test the production bundle, run `npm run
 
 ## Walkthrough recording
 
+[Watch the narrated live walkthrough (MP4, 85 seconds)](https://prashantmoryani.github.io/discount-engine-assignment/live-checkout.mp4). Recorded against the public GitHub Pages deployment, with synthetic narration and inference waits shortened. The [production acceptance run](https://github.com/prashantmoryani/discount-engine-assignment/actions/runs/45223236440) verifies model inference for brand, platform and cart offers, confirmation, discard, PDF replacement and ambiguity handling.
+
 Open the live checkout and follow the first three steps above. Show the stacked Bed Sheet Set, the full-price Ceramic Vase, the separate cart saving, the parsed rule before and after confirming, then the PDF replacing a different cart. The recording should capture the deployed URL.
